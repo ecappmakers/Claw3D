@@ -12,7 +12,7 @@
     "publish_github_release": true,
     "notify_telegram": true,
     "auto_deploy_dev": true,
-    "auto_deploy_prod": true
+    "auto_deploy_prod": false
   },
   "deploy": {
     "service_name": "ecapps-office",
@@ -20,14 +20,14 @@
     "replicas": 1,
     "db_needed": false,
     "auto_deploy_dev": true,
-    "auto_deploy_prod": true,
+    "auto_deploy_prod": false,
     "dev_config": {
       "is_enabled": true,
       "container_port": 3000,
       "domains": ["office.dev.ecapps.in"]
     },
     "prod_config": {
-      "is_enabled": true,
+      "is_enabled": false,
       "container_port": 3000,
       "domains": ["office.ecapps.in"]
     }
