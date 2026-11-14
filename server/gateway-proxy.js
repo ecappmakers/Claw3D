@@ -243,7 +243,7 @@ function createGatewayProxy(options) {
         return;
       }
 
-      const baseConnectFrame = browserHasAuth
+      const baseConnectFrame = hasNonEmptyToken(frame.params)
         ? frame
         : {
             ...frame,
@@ -257,15 +257,10 @@ function createGatewayProxy(options) {
       const client = isObject(connectParams.client) ? { ...connectParams.client } : {};
       const clientId = typeof client.id === "string" ? client.id.trim() : "";
 
-      if (
-        upstreamAdapterType === "openclaw" &&
-        clientId === "openclaw-control-ui" &&
-        !hasDeviceAuth
-      ) {
-        client.id = "webchat-ui";
-        connectParams.client = client;
-        if (isObject(connectParams.device) && !hasCompleteDeviceAuth(connectParams)) {
-          delete connectParams.device;
+      if (upstreamAdapterType === "openclaw") {
+        if (!client.buildId) {
+          client.buildId = "2026.11.3-847611dcaa3b-2026-11-10T11-10-34.204Z";
+          connectParams.client = client;
         }
       }
 
@@ -273,6 +268,11 @@ function createGatewayProxy(options) {
         ...baseConnectFrame,
         params: connectParams,
       };
+      log(
+        `[gateway-proxy] forwarding connect frame to upstream (hasToken=${Boolean(
+          connectParams.auth?.token
+        )}, clientId=${clientId})`
+      );
       upstreamWs.send(JSON.stringify(connectFrame));
     };
 
@@ -330,8 +330,18 @@ function createGatewayProxy(options) {
         return;
       }
 
+      const isLoopbackTarget =
+        upstreamUrl.includes("localhost") ||
+        upstreamUrl.includes("127.0.0.1") ||
+        upstreamUrl.includes("openclaw-gateway");
+
+      const wsHeaders = isLoopbackTarget
+        ? { Host: "localhost:18789" }
+        : {};
+
       upstreamWs = new WebSocket(upstreamUrl, {
-        origin: upstreamOrigin,
+        origin: isLoopbackTarget ? "http://localhost:18789" : upstreamOrigin,
+        headers: wsHeaders,
         handshakeTimeout: upstreamHandshakeTimeoutMs,
       });
 
@@ -355,6 +365,7 @@ function createGatewayProxy(options) {
           upstreamHandshakeTimeoutId = null;
         }
         upstreamReady = true;
+        log(`[gateway-proxy] upstream connected to ${upstreamUrl}`);
         maybeForwardPendingConnect();
       });
 

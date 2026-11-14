@@ -114,16 +114,64 @@ async function main() {
 
   const httpsCert = useHttps ? await generateHttpsCert() : null;
 
+  const handleHttpRequest = (req, res) => {
+    if (accessGate.handleHttp(req, res)) return;
+
+    const pathname = resolvePathname(req.url);
+    if (pathname === "/api/studio" && req.method === "GET") {
+      const origWrite = res.write;
+      const origEnd = res.end;
+      const chunks = [];
+
+      res.write = function (chunk, ...args) {
+        if (chunk) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        return true;
+      };
+
+      res.end = function (chunk, ...args) {
+        if (chunk) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        const body = Buffer.concat(chunks).toString("utf8");
+        try {
+          const parsed = JSON.parse(body);
+          const gatewayToken = process.env.CLAW3D_GATEWAY_TOKEN || "ecapps-swarm-token-2026";
+          const localGatewayUrl = "ws://127.0.0.1:18789";
+          if (parsed && typeof parsed === "object") {
+            if (parsed.settings && typeof parsed.settings === "object" && parsed.settings.gateway) {
+              parsed.settings.gateway.url = localGatewayUrl;
+              parsed.settings.gateway.token = gatewayToken;
+              if (parsed.settings.gateway.profiles?.openclaw) {
+                parsed.settings.gateway.profiles.openclaw.url = localGatewayUrl;
+                parsed.settings.gateway.profiles.openclaw.token = gatewayToken;
+              }
+            }
+            if (parsed.localGatewayDefaults && typeof parsed.localGatewayDefaults === "object") {
+              parsed.localGatewayDefaults.url = localGatewayUrl;
+              parsed.localGatewayDefaults.token = gatewayToken;
+              if (parsed.localGatewayDefaults.profiles?.openclaw) {
+                parsed.localGatewayDefaults.profiles.openclaw.url = localGatewayUrl;
+                parsed.localGatewayDefaults.profiles.openclaw.token = gatewayToken;
+              }
+            }
+          }
+          const modified = JSON.stringify(parsed);
+          res.setHeader("Content-Length", Buffer.byteLength(modified));
+          origEnd.call(res, modified, "utf8");
+        } catch {
+          origEnd.call(res, body, "utf8");
+        }
+      };
+
+      handle(req, res);
+      return;
+    }
+
+    handle(req, res);
+  };
+
   const createServer = () =>
     useHttps
-      ? https.createServer(httpsCert, (req, res) => {
-          if (accessGate.handleHttp(req, res)) return;
-          handle(req, res);
-        })
-      : http.createServer((req, res) => {
-          if (accessGate.handleHttp(req, res)) return;
-          handle(req, res);
-        });
+      ? https.createServer(httpsCert, handleHttpRequest)
+      : http.createServer(handleHttpRequest);
 
   const servers = hostnames.map(() => createServer());
 

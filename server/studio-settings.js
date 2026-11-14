@@ -56,7 +56,7 @@ const readJsonFile = (filePath) => {
   return JSON.parse(raw);
 };
 
-const DEFAULT_GATEWAY_URL = "ws://localhost:18789";
+const DEFAULT_GATEWAY_URL = (process.env.CLAW3D_GATEWAY_URL || "ws://localhost:18789").trim();
 const OPENCLAW_CONFIG_FILENAME = "openclaw.json";
 
 const isRecord = (value) => Boolean(value && typeof value === "object");
@@ -83,20 +83,25 @@ const readOpenclawGatewayDefaults = (env = process.env) => {
 };
 
 const loadUpstreamGatewaySettings = (env = process.env) => {
+  const envUrl = (env.CLAW3D_GATEWAY_URL || "").trim();
+  const envToken = (env.CLAW3D_GATEWAY_TOKEN || "").trim();
+  const envAdapter = (env.CLAW3D_GATEWAY_ADAPTER_TYPE || "").trim();
+
   const settingsPath = resolveStudioSettingsPath(env);
   const parsed = readJsonFile(settingsPath);
   const gateway = parsed && typeof parsed === "object" ? parsed.gateway : null;
-  const url = typeof gateway?.url === "string" ? gateway.url.trim() : "";
-  const token = typeof gateway?.token === "string" ? gateway.token.trim() : "";
+  const url = typeof gateway?.url === "string" && gateway.url.trim() ? gateway.url.trim() : envUrl;
+  const token = typeof gateway?.token === "string" && gateway.token.trim() ? gateway.token.trim() : envToken;
   const adapterType =
     typeof gateway?.adapterType === "string" && gateway.adapterType.trim()
       ? gateway.adapterType.trim()
-      : "openclaw";
+      : (envAdapter || "openclaw");
+
   if (!token && adapterType === "openclaw") {
     const defaults = readOpenclawGatewayDefaults(env);
     if (defaults) {
       return {
-        url: url || defaults.url,
+        url: url || defaults.url || DEFAULT_GATEWAY_URL,
         token: defaults.token,
         adapterType,
         settingsPath,
@@ -105,7 +110,7 @@ const loadUpstreamGatewaySettings = (env = process.env) => {
   }
   return {
     url: url || DEFAULT_GATEWAY_URL,
-    token,
+    token: token || envToken,
     adapterType,
     settingsPath,
   };
