@@ -4,7 +4,7 @@
 FROM node:20-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --ignore-scripts --omit=dev
+RUN npm ci --ignore-scripts --omit=dev && npm install typescript --no-save
 
 FROM node:20-slim AS builder
 WORKDIR /app

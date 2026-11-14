@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "app_name": "ecapps-office",
+  "app_type": "container",
+  "container": {
+    "image_name": "ghcr.io/ecappmakers/ecapps-office",
+    "dockerfile": "Dockerfile",
+    "port": 3000
+  },
+  "release": {
+    "publish_container": true,
+    "publish_github_release": true,
+    "notify_telegram": true,
+    "auto_deploy_dev": true,
+    "auto_deploy_prod": true
+  },
+  "deploy": {
+    "service_name": "ecapps-office",
+    "type": "server",
+    "replicas": 1,
+    "db_needed": false,
+    "auto_deploy_dev": true,
+    "auto_deploy_prod": true,
+    "dev_config": {
+      "is_enabled": true,
+      "container_port": 3000,
+      "domains": ["office.dev.ecapps.in"]
+    },
+    "prod_config": {
+      "is_enabled": true,
+      "container_port": 3000,
+      "domains": ["office.ecapps.in"]
+    }
+  }
+}

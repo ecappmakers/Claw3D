@@ -1,0 +1,33 @@
+name: 🚀 Enterprise Release Pipeline
+
+on:
+  push:
+    branches:
+      - production
+      - main
+  workflow_dispatch:
+    inputs:
+      custom_version:
+        description: 'Override Semantic Version Tag (e.g. v1.0.0). Leave empty for auto-calculation.'
+        required: false
+        type: string
+        default: ''
+
+concurrency:
+  group: ${{ github.repository }}-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+  actions: read
+
+jobs:
+  release:
+    uses: ecappmakers/service-delivery/.github/workflows/unified-release.yml@production
+    with:
+      build_type: 'container'
+      dockerfile_path: 'Dockerfile'
+      image_name: 'ghcr.io/ecappmakers/ecapps-office'
+      custom_version: ${{ inputs.custom_version || '' }}
