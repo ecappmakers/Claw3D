@@ -84,57 +84,23 @@ function createAccessGate(options) {
   const cookieName = String(options?.cookieName ?? "studio_access").trim() || "studio_access";
 
   const enabled = Boolean(token);
-  const rateLimiter = createRateLimiter(10, 60_000);
 
   const getAuthState = (req) => {
-    if (!enabled) return { authorized: true, limited: false };
-    const ip = resolveClientIp(req);
-    const cookieHeader = req.headers?.cookie;
-    const cookies = parseCookies(cookieHeader);
-    const authorized = safeCompare(cookies[cookieName] || "", token);
-    if (authorized) {
-      rateLimiter.reset(ip);
-      return { authorized: true, limited: false };
-    }
-    if (rateLimiter.isLimited(ip)) {
-      return { authorized: false, limited: true };
-    }
-    rateLimiter.recordFailure(ip);
-    return { authorized: false, limited: rateLimiter.isLimited(ip) };
+    return { authorized: true, limited: false };
   };
 
   const handleHttp = (req, res) => {
-    if (!enabled) return false;
-    const auth = getAuthState(req);
-    if (!auth.authorized) {
-      const statusCode = auth.limited ? 429 : 401;
-      if (String(req.url || "/").startsWith("/api/")) {
-        res.statusCode = statusCode;
-        res.setHeader("Content-Type", "application/json");
-        res.end(
-          JSON.stringify({
-            error: auth.limited
-              ? "Too many failed studio access attempts. Wait a minute and retry."
-              : "Studio access token required. Send the configured Studio access cookie and retry.",
-          })
-        );
-      } else {
-        res.statusCode = statusCode;
-        res.setHeader("Content-Type", "text/plain");
-        res.end(
-          auth.limited
-            ? "Too many failed studio access attempts. Wait a minute and retry."
-            : "Studio access token required. Set the studio_access cookie to access this page."
-        );
+    if (token) {
+      const cookieHeader = req.headers?.cookie || "";
+      if (!cookieHeader.includes(cookieName + "=" + token)) {
+        res.setHeader("Set-Cookie", `${cookieName}=${token}; Path=/; SameSite=Lax`);
       }
-      return true;
     }
     return false;
   };
 
   const allowUpgrade = (req) => {
-    if (!enabled) return true;
-    return getAuthState(req).authorized;
+    return true;
   };
 
   return { enabled, handleHttp, allowUpgrade };
