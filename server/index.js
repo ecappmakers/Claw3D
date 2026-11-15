@@ -134,7 +134,7 @@ async function main() {
         try {
           const parsed = JSON.parse(body);
           const gatewayToken = process.env.CLAW3D_GATEWAY_TOKEN || "ecapps-swarm-token-2026";
-          const localGatewayUrl = "ws://127.0.0.1:18789";
+          const localGatewayUrl = (process.env.CLAW3D_GATEWAY_URL || "ws://agents_stack_openclaw-gateway:18789").trim();
           if (parsed && typeof parsed === "object") {
             if (parsed.settings && typeof parsed.settings === "object" && parsed.settings.gateway) {
               parsed.settings.gateway.url = localGatewayUrl;
